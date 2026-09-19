@@ -1,0 +1,7 @@
+{
+  "name": "แบบสำรวจเลือกคณะอนุกรรมการ มหาวิทยาลัยศิลปากร",
+  "description": "ระบบสำรวจการเลือกคณะอนุกรรมการ 3 ชุด สำหรับคณะกรรมการขับเคลื่อนการพัฒนาทรัพยากรบุคคล มหาวิทยาลัยศิลปากร พร้อมเชื่อมต่อ Google Sheets",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
