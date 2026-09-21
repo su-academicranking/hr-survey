@@ -70,6 +70,7 @@ export const SheetSettingsModal: React.FC<SheetSettingsModalProps> = ({
   );
   const [authError, setAuthError] = useState<string | null>(null);
   const [sheetSuccessMessage, setSheetSuccessMessage] = useState<string | null>(null);
+  const [copiedHostname, setCopiedHostname] = useState(false);
 
   if (!isOpen) return null;
 
@@ -175,6 +176,16 @@ export const SheetSettingsModal: React.FC<SheetSettingsModalProps> = ({
   };
 
   const isScopeError = authError && authError.includes('ACCESS_TOKEN_SCOPE_INSUFFICIENT');
+  const isUnauthorizedDomain =
+    authError && (authError.includes('unauthorized-domain') || authError.includes('auth/unauthorized-domain'));
+
+  const handleCopyHostname = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(window.location.hostname);
+      setCopiedHostname(true);
+      setTimeout(() => setCopiedHostname(false), 2500);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -464,7 +475,37 @@ export const SheetSettingsModal: React.FC<SheetSettingsModalProps> = ({
                   </div>
                 )}
 
-                {authError && !isScopeError && (
+                {isUnauthorizedDomain && (
+                  <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-300 text-xs text-amber-900 space-y-2">
+                    <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>โดเมนนี้ยังไม่ได้รับอนุญาตใน Firebase (auth/unauthorized-domain)</span>
+                    </div>
+                    <p className="leading-relaxed text-slate-700">
+                      เนื่องจากคุณเปิดเว็บผ่านโดเมน <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-amber-900 font-semibold">{typeof window !== 'undefined' ? window.location.hostname : ''}</code> ซึ่งเป็นโดเมนภายนอก Firebase จึงบล็อกเพื่อความปลอดภัย
+                    </p>
+                    <div className="pt-1 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleCopyHostname}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-amber-200/80 hover:bg-amber-200 text-amber-900 font-medium text-[11px] transition-colors cursor-pointer"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>{copiedHostname ? 'คัดลอกชื่อโดเมนแล้ว!' : 'คัดลอกชื่อโดเมน'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('appscript')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-[#005F56] hover:bg-[#004d46] text-white font-medium text-[11px] transition-colors cursor-pointer"
+                      >
+                        <Code2 className="w-3.5 h-3.5" />
+                        <span>หรือใช้วิธี Google Apps Script (ไม่ต้องตั้งค่าโดเมน)</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {authError && !isScopeError && !isUnauthorizedDomain && (
                   <p className="text-xs text-rose-700 bg-rose-50 p-2.5 rounded-lg border border-rose-200">
                     {authError}
                   </p>
