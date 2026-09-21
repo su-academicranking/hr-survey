@@ -61,7 +61,21 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 
     cachedAccessToken = credential.accessToken;
     return { user: result.user, accessToken: cachedAccessToken };
-  } catch (error) {
+  } catch (error: any) {
+    // Gracefully handle normal user actions like closing popup window or cancelling request
+    if (
+      error?.code === 'auth/popup-closed-by-user' ||
+      error?.message?.includes('popup-closed-by-user') ||
+      error?.code === 'auth/cancelled-popup-request'
+    ) {
+      // Normal cancellation - do not treat as an application crash or error
+      return null;
+    }
+
+    if (error?.code === 'auth/popup-blocked') {
+      throw new Error('เบราว์เซอร์บล็อกหน้าต่าง Pop-up กรุณาอนุญาต Pop-up แล้วลองอีกครั้ง');
+    }
+
     console.error('Sign in error:', error);
     throw error;
   } finally {

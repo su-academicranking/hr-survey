@@ -98,7 +98,15 @@ export const SheetSettingsModal: React.FC<SheetSettingsModalProps> = ({
         setSheetSuccessMessage('เข้าสู่ระบบด้วย Google และให้สิทธิ์เรียบร้อยแล้ว');
       }
     } catch (err: any) {
-      console.error('Google Sign in error:', err);
+      if (
+        err?.code === 'auth/popup-closed-by-user' ||
+        err?.message?.includes('popup-closed-by-user') ||
+        err?.code === 'auth/cancelled-popup-request'
+      ) {
+        // User closed or cancelled popup window
+        return;
+      }
+      console.warn('Google Sign in issue:', err);
       setAuthError(err.message || 'ไม่สามารถลงชื่อเข้าใช้ Google ได้');
     } finally {
       setIsSigningIn(false);
