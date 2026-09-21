@@ -24,6 +24,30 @@ const LOCAL_STORAGE_SHEET_URL_KEY = 'silpakorn_spreadsheet_url';
 const LOCAL_STORAGE_ADMIN_KEY = 'silpakorn_is_admin';
 const LOCAL_STORAGE_ADMIN_EMAIL_KEY = 'silpakorn_admin_email';
 
+function getScriptUrlFromLocation(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    // 1. Search params: ?appscript=... or ?script=...
+    const searchParams = new URLSearchParams(window.location.search);
+    const fromSearch = searchParams.get('appscript') || searchParams.get('script');
+    if (fromSearch && fromSearch.includes('script.google.com')) {
+      return decodeURIComponent(fromSearch).trim();
+    }
+    // 2. Hash params: #appscript=... or #script=...
+    if (window.location.hash.includes('script=')) {
+      const hashClean = window.location.hash.replace(/^#/, '');
+      const hashParams = new URLSearchParams(hashClean);
+      const fromHash = hashParams.get('appscript') || hashParams.get('script');
+      if (fromHash && fromHash.includes('script.google.com')) {
+        return decodeURIComponent(fromHash).trim();
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return '';
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'survey' | 'summary'>('survey');
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -48,7 +72,8 @@ export default function App() {
   });
 
   const [sheetConfig, setSheetConfig] = useState<SheetConfig>(() => {
-    const savedUrl = localStorage.getItem(LOCAL_STORAGE_URL_KEY) || '';
+    const fromUrl = getScriptUrlFromLocation();
+    const savedUrl = fromUrl || localStorage.getItem(LOCAL_STORAGE_URL_KEY) || '';
     const savedSheetId = localStorage.getItem(LOCAL_STORAGE_SHEET_ID_KEY) || '';
     const savedSheetUrl = localStorage.getItem(LOCAL_STORAGE_SHEET_URL_KEY) || '';
     return {
@@ -65,31 +90,64 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Fetch submissions from backend or localStorage
-  const fetchSubmissions = useCallback(async (syncFromSheet = false) => {
+  // Fetch submissions from backend or direct Google Apps Script (Guarantees data loads in Incognito mode)
+  const fetchSubmissions = useCallback(async (syncFromSheet = false, overrideScriptUrl?: string) => {
     setIsRefreshing(true);
+    const activeScriptUrl =
+      overrideScriptUrl ||
+      sheetConfig.appScriptUrl ||
+      getScriptUrlFromLocation() ||
+      localStorage.getItem(LOCAL_STORAGE_URL_KEY) ||
+      '';
+
     try {
-      const query = syncFromSheet ? '?sync=true' : '';
-      const res = await fetch(`/api/submissions${query}`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.status === 'success' && Array.isArray(json.data)) {
-          setSubmissions(json.data);
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.data));
-          return;
+      // 1. First attempt backend API (if server is running)
+      let backendLoaded = false;
+      try {
+        const query = syncFromSheet ? '?sync=true' : '';
+        const res = await fetch(`/api/submissions${query}`, { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
+            setSubmissions(json.data);
+            try {
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.data));
+            } catch {
+              // ignore
+            }
+            backendLoaded = true;
+            return;
+          }
         }
+      } catch {
+        // Backend not running (e.g. GitHub Pages static hosting)
       }
-      // Fallback for static hosting / GitHub Pages
-      const local = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (local) {
+
+      // 2. Direct Google Apps Script fetch (Ensures data displays in Incognito mode & GitHub Pages)
+      if (activeScriptUrl && activeScriptUrl.includes('script.google.com')) {
         try {
-          setSubmissions(JSON.parse(local));
-        } catch {
-          // ignore
+          const scriptRes = await fetch(activeScriptUrl, {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+          });
+          if (scriptRes.ok) {
+            const json = await scriptRes.json();
+            if (json && json.status === 'success' && Array.isArray(json.data)) {
+              setSubmissions(json.data);
+              try {
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.data));
+              } catch {
+                // ignore
+              }
+              return;
+            }
+          }
+        } catch (scriptErr) {
+          console.warn('Direct Apps Script fetch notice:', scriptErr);
         }
       }
-    } catch {
-      // Backend not running (e.g. GitHub Pages static)
+
+      // 3. LocalStorage fallback
       const local = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (local) {
         try {
@@ -101,35 +159,73 @@ export default function App() {
     } finally {
       setIsRefreshing(false);
     }
-  }, []);
+  }, [sheetConfig.appScriptUrl]);
 
-  // Fetch config on mount
+  // Fetch config on mount & auto-sync
   useEffect(() => {
     async function loadConfig() {
+      let loadedUrl = getScriptUrlFromLocation();
+
+      // Check static config file (essential for GitHub Pages and Incognito mode)
+      if (!loadedUrl) {
+        try {
+          const staticRes = await fetch('./app-config.json', { cache: 'no-store' });
+          if (staticRes.ok) {
+            const staticData = await staticRes.json();
+            if (staticData?.appScriptUrl && typeof staticData.appScriptUrl === 'string' && staticData.appScriptUrl.trim()) {
+              loadedUrl = staticData.appScriptUrl.trim();
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // Check backend API /api/config
       try {
-        const res = await fetch('/api/config');
+        const res = await fetch('/api/config', { cache: 'no-store' });
         if (res.ok) {
           const cfg = await res.json();
-          if (cfg.appScriptUrl) {
-            setSheetConfig({
-              appScriptUrl: cfg.appScriptUrl,
-              isConfigured: true,
-              syncStatus: 'idle',
-            });
-            localStorage.setItem(LOCAL_STORAGE_URL_KEY, cfg.appScriptUrl);
+          if (cfg.appScriptUrl && typeof cfg.appScriptUrl === 'string' && cfg.appScriptUrl.trim()) {
+            loadedUrl = cfg.appScriptUrl.trim();
           }
         }
       } catch (err) {
         console.warn('Config fetch skipped:', err);
       }
+
+      // Fallback to localStorage
+      if (!loadedUrl) {
+        loadedUrl = localStorage.getItem(LOCAL_STORAGE_URL_KEY) || '';
+      }
+
+      if (loadedUrl) {
+        setSheetConfig((prev) => ({
+          ...prev,
+          appScriptUrl: loadedUrl,
+          isConfigured: true,
+          syncStatus: 'idle',
+        }));
+        try {
+          localStorage.setItem(LOCAL_STORAGE_URL_KEY, loadedUrl);
+        } catch {
+          // ignore
+        }
+        fetchSubmissions(true, loadedUrl);
+      } else {
+        fetchSubmissions(true);
+      }
     }
 
     // Wipe any persisted admin login so reloading or sharing links always shows normal page
-    localStorage.removeItem(LOCAL_STORAGE_ADMIN_KEY);
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_ADMIN_KEY);
+    } catch {
+      // ignore
+    }
     setIsAdmin(false);
 
     loadConfig();
-    fetchSubmissions(true);
 
     const unsubscribeAuth = initAuth(
       (user, token) => {
@@ -213,7 +309,7 @@ export default function App() {
           fetch(sheetConfig.appScriptUrl, {
             method: 'POST',
             mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify(formData),
           }).catch((e) => console.warn('Direct Apps Script ping:', e));
         } catch {
@@ -242,21 +338,30 @@ export default function App() {
 
   // Save Apps Script URL
   const handleSaveSheetConfig = async (url: string) => {
+    const cleanUrl = url.trim();
     setSheetConfig((prev) => ({
       ...prev,
-      appScriptUrl: url,
-      isConfigured: Boolean(url.trim() || prev.spreadsheetId),
+      appScriptUrl: cleanUrl,
+      isConfigured: Boolean(cleanUrl || prev.spreadsheetId),
     }));
-    localStorage.setItem(LOCAL_STORAGE_URL_KEY, url);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_URL_KEY, cleanUrl);
+    } catch {
+      // ignore
+    }
 
     try {
       await fetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appScriptUrl: url }),
+        body: JSON.stringify({ appScriptUrl: cleanUrl }),
       });
     } catch {
       // Backend not running on static hosts
+    }
+
+    if (cleanUrl) {
+      await fetchSubmissions(true, cleanUrl);
     }
   };
 

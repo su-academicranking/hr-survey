@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { APPS_SCRIPT_TEMPLATE } from '../data/committeeData';
 import { SheetConfig, SurveySubmission } from '../types';
 import {
@@ -18,6 +18,7 @@ import {
   Code2,
   KeyRound,
   ArrowRight,
+  Share2,
 } from 'lucide-react';
 import {
   googleSignIn,
@@ -71,6 +72,13 @@ export const SheetSettingsModal: React.FC<SheetSettingsModalProps> = ({
   const [authError, setAuthError] = useState<string | null>(null);
   const [sheetSuccessMessage, setSheetSuccessMessage] = useState<string | null>(null);
   const [copiedHostname, setCopiedHostname] = useState(false);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+
+  useEffect(() => {
+    if (sheetConfig.appScriptUrl) {
+      setUrlInput(sheetConfig.appScriptUrl);
+    }
+  }, [sheetConfig.appScriptUrl]);
 
   if (!isOpen) return null;
 
@@ -79,6 +87,25 @@ export const SheetSettingsModal: React.FC<SheetSettingsModalProps> = ({
     await onSaveConfig(urlInput.trim());
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const getShareLink = () => {
+    if (typeof window === 'undefined') return '';
+    const script = urlInput.trim() || sheetConfig.appScriptUrl || '';
+    const base = window.location.origin + window.location.pathname;
+    if (script) {
+      return `${base}#appscript=${encodeURIComponent(script)}`;
+    }
+    return base;
+  };
+
+  const handleCopyShareLink = () => {
+    const link = getShareLink();
+    if (link) {
+      navigator.clipboard.writeText(link);
+      setCopiedShareLink(true);
+      setTimeout(() => setCopiedShareLink(false), 3000);
+    }
   };
 
   const handleCopyCode = () => {
@@ -383,8 +410,30 @@ export const SheetSettingsModal: React.FC<SheetSettingsModalProps> = ({
                 {savedSuccess && (
                   <p className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
                     <Check className="w-4 h-4" />
-                    บันทึกการตั้งค่าแล้ว ข้อมูลจะเริ่มซิงก์เรียลไทม์ทันที
+                    บันทึกและจดจำลิงก์เรียบร้อยแล้ว! ระบบจะจดจำในระบบและซิงก์ข้อมูลทันที
                   </p>
+                )}
+
+                {(sheetConfig.appScriptUrl || urlInput.trim()) && (
+                  <div className="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 text-xs space-y-2 mt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="font-bold text-emerald-950 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>จดจำลิงก์ Google Apps Script แล้ว (พร้อมใช้ในโหมดไม่ระบุตัวตน)</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopyShareLink}
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#005F56] hover:bg-[#004d46] text-white font-bold text-xs transition-all shadow-2xs shrink-0 cursor-pointer"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>{copiedShareLink ? 'คัดลอกลิงก์สำเร็จแล้ว!' : 'คัดลอกลิงก์แชร์ให้กรรมการ'}</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 leading-relaxed">
+                      ลิงก์แชร์นี้จะฝังการเชื่อมต่อ Google Sheets ไปด้วยโดยอัตโนมัติ ทำให้กรรมการท่านอื่นที่เปิดผ่าน <strong>โหมดไม่ระบุตัวตน (Incognito)</strong> หรือเปิดบนโทรศัพท์มือถือ/คอมพิวเตอร์เครื่องอื่น สามารถแสดงข้อมูลคณะกรรมการและผลการเลือกได้ทันทีโดยไม่ต้องตั้งค่าใหม่
+                    </p>
+                  </div>
                 )}
               </form>
             </div>

@@ -1,5 +1,7 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
+import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
 
 interface SubmissionRecord {
@@ -17,11 +19,101 @@ const PORT = 3000;
 
 app.use(express.json());
 
-import crypto from 'crypto';
+// Persistent store files
+const DATA_DIR = path.join(process.cwd(), 'data');
+const SUBMISSIONS_FILE = path.join(DATA_DIR, 'submissions.json');
+const SERVER_CONFIG_FILE = path.join(DATA_DIR, 'server-config.json');
+const PUBLIC_CONFIG_FILE = path.join(process.cwd(), 'public', 'app-config.json');
+const DIST_CONFIG_FILE = path.join(process.cwd(), 'dist', 'app-config.json');
+const DOCS_CONFIG_FILE = path.join(process.cwd(), 'docs', 'app-config.json');
 
-// In-memory persistent store for committee survey submissions
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch {
+    // ignore
+  }
+}
+
+// In-memory store initialized with disk backup
 let submissionsStore: SubmissionRecord[] = [];
+try {
+  if (fs.existsSync(SUBMISSIONS_FILE)) {
+    const raw = fs.readFileSync(SUBMISSIONS_FILE, 'utf-8');
+    submissionsStore = JSON.parse(raw);
+  }
+} catch {
+  submissionsStore = [];
+}
+
+function persistSubmissions() {
+  try {
+    fs.writeFileSync(SUBMISSIONS_FILE, JSON.stringify(submissionsStore, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('Failed to persist submissions to file:', err);
+  }
+}
+
+// Load configured AppScript URL from environment, data directory, or public app-config.json
 let configuredAppScriptUrl = process.env.APPS_SCRIPT_URL || '';
+if (!configuredAppScriptUrl && fs.existsSync(SERVER_CONFIG_FILE)) {
+  try {
+    const savedConfig = JSON.parse(fs.readFileSync(SERVER_CONFIG_FILE, 'utf-8'));
+    if (savedConfig?.appScriptUrl) {
+      configuredAppScriptUrl = String(savedConfig.appScriptUrl).trim();
+    }
+  } catch {
+    // ignore
+  }
+}
+if (!configuredAppScriptUrl && fs.existsSync(PUBLIC_CONFIG_FILE)) {
+  try {
+    const publicConfig = JSON.parse(fs.readFileSync(PUBLIC_CONFIG_FILE, 'utf-8'));
+    if (publicConfig?.appScriptUrl) {
+      configuredAppScriptUrl = String(publicConfig.appScriptUrl).trim();
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function persistAppScriptUrl(url: string) {
+  configuredAppScriptUrl = url.trim();
+  const configData = JSON.stringify({ appScriptUrl: configuredAppScriptUrl }, null, 2);
+
+  // Write to data/server-config.json
+  try {
+    fs.writeFileSync(SERVER_CONFIG_FILE, configData, 'utf-8');
+  } catch {
+    // ignore
+  }
+
+  // Write to public/app-config.json (so next build/export has it)
+  try {
+    fs.writeFileSync(PUBLIC_CONFIG_FILE, configData, 'utf-8');
+  } catch {
+    // ignore
+  }
+
+  // Write to dist/app-config.json if dist folder exists
+  try {
+    if (fs.existsSync(path.join(process.cwd(), 'dist'))) {
+      fs.writeFileSync(DIST_CONFIG_FILE, configData, 'utf-8');
+    }
+  } catch {
+    // ignore
+  }
+
+  // Write to docs/app-config.json if docs folder exists
+  try {
+    if (fs.existsSync(path.join(process.cwd(), 'docs'))) {
+      fs.writeFileSync(DOCS_CONFIG_FILE, configData, 'utf-8');
+    }
+  } catch {
+    // ignore
+  }
+}
 
 // Admin Credentials (default credentials hashed)
 const DEFAULT_ADMIN_HASH = 'ac9689e2272427085e35b9d3e3e8bed88cb3434828b43b86fc0596cad4c6e270';
@@ -130,7 +222,7 @@ app.get('/api/config', (req, res) => {
 app.post('/api/config', (req, res) => {
   const { appScriptUrl } = req.body;
   if (typeof appScriptUrl === 'string') {
-    configuredAppScriptUrl = appScriptUrl.trim();
+    persistAppScriptUrl(appScriptUrl);
   }
   res.json({
     status: 'success',
@@ -154,6 +246,7 @@ app.get('/api/submissions', async (req, res) => {
           const result = JSON.parse(text);
           if (result && Array.isArray(result.data)) {
             submissionsStore = result.data;
+            persistSubmissions();
           }
         } catch {
           // ignore parsing error, use local submissions
@@ -196,6 +289,8 @@ app.post('/api/submissions', async (req, res) => {
   } else {
     submissionsStore.push(newSubmission);
   }
+
+  persistSubmissions();
 
   // If Apps Script URL is configured, push to Google Sheets in background
   let sheetSyncSuccess = false;
@@ -252,6 +347,8 @@ app.put('/api/submissions/:memberId', async (req, res) => {
     submissionsStore.push(updatedRecord);
   }
 
+  persistSubmissions();
+
   // Forward update to Apps Script if configured
   if (configuredAppScriptUrl) {
     try {
@@ -275,12 +372,14 @@ app.put('/api/submissions/:memberId', async (req, res) => {
 
 app.delete('/api/submissions', (req, res) => {
   submissionsStore = [];
+  persistSubmissions();
   res.json({ status: 'success', message: 'ล้างข้อมูลการเลือกทั้งหมดแล้ว', allSubmissions: [] });
 });
 
 app.delete('/api/submissions/:memberId', async (req, res) => {
   const memberId = Number(req.params.memberId);
   submissionsStore = submissionsStore.filter((s) => s.memberId !== memberId);
+  persistSubmissions();
 
   // Forward deletion to Apps Script if configured
   if (configuredAppScriptUrl) {
