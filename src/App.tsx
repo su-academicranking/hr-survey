@@ -284,7 +284,6 @@ export default function App() {
   ): Promise<{ success: boolean; message?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = pass.trim();
-    const savedAdminPass = localStorage.getItem('silpakorn_admin_password') || 'admin1234';
 
     try {
       const res = await fetch('/api/admin/login', {
@@ -307,8 +306,23 @@ export default function App() {
       // Backend not running (e.g. GitHub Pages)
     }
 
-    // Static hosting client-side fallback
-    if (cleanPass === savedAdminPass || cleanPass === 'admin1234') {
+    // Static hosting client-side fallback (hashed verification)
+    const DEFAULT_PASS_HASH = 'ac9689e2272427085e35b9d3e3e8bed88cb3434828b43b86fc0596cad4c6e270';
+    let inputHash = '';
+    try {
+      const msgBuffer = new TextEncoder().encode(cleanPass);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      inputHash = Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    } catch {
+      // ignore
+    }
+
+    const savedAdminPass = localStorage.getItem('silpakorn_admin_password');
+    const isMatched = (savedAdminPass && cleanPass === savedAdminPass) || inputHash === DEFAULT_PASS_HASH;
+
+    if (isMatched) {
       setIsAdmin(true);
       setAdminEmail(email || 'admin@silpakorn.edu');
       localStorage.setItem(LOCAL_STORAGE_ADMIN_KEY, 'true');

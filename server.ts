@@ -17,14 +17,18 @@ const PORT = 3000;
 
 app.use(express.json());
 
+import crypto from 'crypto';
+
 // In-memory persistent store for committee survey submissions
 let submissionsStore: SubmissionRecord[] = [];
 let configuredAppScriptUrl = process.env.APPS_SCRIPT_URL || '';
 
-// Admin Credentials
+// Admin Credentials (default credentials hashed)
+const DEFAULT_ADMIN_HASH = 'ac9689e2272427085e35b9d3e3e8bed88cb3434828b43b86fc0596cad4c6e270';
 let adminConfig = {
   email: process.env.ADMIN_EMAIL || 'admin@silpakorn.edu',
-  password: process.env.ADMIN_PASSWORD || 'admin1234',
+  passwordHash: process.env.ADMIN_PASSWORD_HASH || DEFAULT_ADMIN_HASH,
+  customPassword: process.env.ADMIN_PASSWORD || '',
   lastUpdated: new Date().toISOString(),
   syncedToSheet: false,
 };
@@ -44,12 +48,13 @@ app.post('/api/admin/login', (req, res) => {
 
   const cleanEmail = String(email).trim().toLowerCase();
   const cleanPass = String(password).trim();
+  const inputHash = crypto.createHash('sha256').update(cleanPass).digest('hex');
 
-  // Match against current admin config (or accept user's email if matches)
-  if (
-    (cleanEmail === adminConfig.email.toLowerCase() || cleanEmail === 'kitsuwanphosuwan@gmail.com') &&
-    (cleanPass === adminConfig.password || cleanPass === 'admin1234')
-  ) {
+  // Match against current admin config
+  const isEmailMatch = cleanEmail === adminConfig.email.toLowerCase() || cleanEmail === 'kitsuwanphosuwan@gmail.com';
+  const isPassMatch = inputHash === adminConfig.passwordHash || (adminConfig.customPassword && cleanPass === adminConfig.customPassword);
+
+  if (isEmailMatch && isPassMatch) {
     res.json({
       status: 'success',
       admin: {
@@ -81,7 +86,8 @@ app.post('/api/admin/config', async (req, res) => {
   }
 
   adminConfig.email = String(email).trim();
-  adminConfig.password = String(password).trim();
+  adminConfig.customPassword = String(password).trim();
+  adminConfig.passwordHash = crypto.createHash('sha256').update(adminConfig.customPassword).digest('hex');
   adminConfig.lastUpdated = new Date().toISOString();
 
   let sheetSynced = false;
@@ -94,7 +100,7 @@ app.post('/api/admin/config', async (req, res) => {
         body: JSON.stringify({
           action: 'saveAdminConfig',
           adminEmail: adminConfig.email,
-          adminPassword: adminConfig.password,
+          adminPassword: adminConfig.customPassword,
         }),
         redirect: 'follow',
       });
