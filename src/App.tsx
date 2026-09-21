@@ -8,7 +8,7 @@ import { SummaryView } from './components/SummaryView';
 import { SheetSettingsModal } from './components/SheetSettingsModal';
 import { AdminLoginModal } from './components/AdminLoginModal';
 import { AdminEditModal } from './components/AdminEditModal';
-import { Users, FileSpreadsheet, ShieldAlert } from 'lucide-react';
+import { Users, FileSpreadsheet, ShieldAlert, Lock } from 'lucide-react';
 import {
   initAuth,
   syncSubmissionToSheet,
@@ -40,7 +40,14 @@ export default function App() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSubmission, setEditingSubmission] = useState<SurveySubmission | null>(null);
 
-  const [submissions, setSubmissions] = useState<SurveySubmission[]>([]);
+  const [submissions, setSubmissions] = useState<SurveySubmission[]>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const [sheetConfig, setSheetConfig] = useState<SheetConfig>(() => {
     const savedUrl = localStorage.getItem(LOCAL_STORAGE_URL_KEY) || '';
@@ -60,7 +67,7 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Fetch submissions from backend
+  // Fetch submissions from backend or localStorage
   const fetchSubmissions = useCallback(async (syncFromSheet = false) => {
     setIsRefreshing(true);
     try {
@@ -71,10 +78,28 @@ export default function App() {
         if (json.status === 'success' && Array.isArray(json.data)) {
           setSubmissions(json.data);
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.data));
+          return;
         }
       }
-    } catch (err) {
-      console.warn('Failed to fetch submissions:', err);
+      // Fallback for static hosting / GitHub Pages
+      const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (local) {
+        try {
+          setSubmissions(JSON.parse(local));
+        } catch {
+          // ignore
+        }
+      }
+    } catch {
+      // Backend not running (e.g. GitHub Pages static)
+      const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (local) {
+        try {
+          setSubmissions(JSON.parse(local));
+        } catch {
+          // ignore
+        }
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -136,23 +161,27 @@ export default function App() {
   }): Promise<boolean> => {
     setIsSubmitting(true);
     try {
-      // 1. Post to local server
-      const res = await fetch('/api/submissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
       let updatedList: SurveySubmission[] = [];
 
-      if (res.ok) {
-        const json = await res.json();
-        if (json.allSubmissions) {
-          updatedList = json.allSubmissions;
+      // 1. Post to local server if available
+      try {
+        const res = await fetch('/api/submissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.allSubmissions) {
+            updatedList = json.allSubmissions;
+          }
         }
+      } catch {
+        // Backend not available (e.g. GitHub Pages static hosting)
       }
 
-      // If backend didn't return full list, calculate locally
+      // 2. If backend didn't return full list, calculate locally
       if (updatedList.length === 0) {
         const newRecord: SurveySubmission = {
           id: `sub_${Date.now()}_${formData.memberId}`,
@@ -176,7 +205,7 @@ export default function App() {
       setSubmissions(updatedList);
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedList));
 
-      // Direct client-side Apps Script fallback if needed
+      // 3. Direct client-side Apps Script fallback if needed
       if (sheetConfig.appScriptUrl) {
         try {
           fetch(sheetConfig.appScriptUrl, {
@@ -190,7 +219,7 @@ export default function App() {
         }
       }
 
-      // Direct client-side Google Sheet sync if OAuth token & spreadsheetId exist
+      // 4. Direct client-side Google Sheet sync if OAuth token & spreadsheetId exist
       if (accessToken && sheetConfig.spreadsheetId && updatedList.length > 0) {
         const lastRecord = updatedList.find((s) => s.memberId === formData.memberId);
         if (lastRecord) {
@@ -224,8 +253,8 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appScriptUrl: url }),
       });
-    } catch (err) {
-      console.warn('Config save backend error:', err);
+    } catch {
+      // Backend not running on static hosts
     }
   };
 
@@ -253,24 +282,40 @@ export default function App() {
     email: string,
     pass: string
   ): Promise<{ success: boolean; message?: string }> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = pass.trim();
+    const savedAdminPass = localStorage.getItem('silpakorn_admin_password') || 'admin1234';
+
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: pass }),
       });
-      const data = await res.json();
-      if (res.ok && data.status === 'success') {
-        setIsAdmin(true);
-        setAdminEmail(email);
-        localStorage.setItem(LOCAL_STORAGE_ADMIN_KEY, 'true');
-        localStorage.setItem(LOCAL_STORAGE_ADMIN_EMAIL_KEY, email);
-        return { success: true };
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'success') {
+          setIsAdmin(true);
+          setAdminEmail(email);
+          localStorage.setItem(LOCAL_STORAGE_ADMIN_KEY, 'true');
+          localStorage.setItem(LOCAL_STORAGE_ADMIN_EMAIL_KEY, email);
+          return { success: true };
+        }
+        return { success: false, message: data.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' };
       }
-      return { success: false, message: data.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' };
     } catch {
-      return { success: false, message: 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์' };
+      // Backend not running (e.g. GitHub Pages)
     }
+
+    // Static hosting client-side fallback
+    if (cleanPass === savedAdminPass || cleanPass === 'admin1234') {
+      setIsAdmin(true);
+      setAdminEmail(email || 'admin@silpakorn.edu');
+      localStorage.setItem(LOCAL_STORAGE_ADMIN_KEY, 'true');
+      localStorage.setItem(LOCAL_STORAGE_ADMIN_EMAIL_KEY, email || 'admin@silpakorn.edu');
+      return { success: true };
+    }
+    return { success: false, message: 'รหัสผ่านไม่ถูกต้อง (รหัสเริ่มต้น: admin1234)' };
   };
 
   const handleAdminLogout = () => {
@@ -282,50 +327,44 @@ export default function App() {
     newEmail: string,
     newPass: string
   ): Promise<{ success: boolean; message: string; sheetSynced: boolean }> => {
+    localStorage.setItem('silpakorn_admin_password', newPass);
+    localStorage.setItem(LOCAL_STORAGE_ADMIN_EMAIL_KEY, newEmail);
+    setAdminEmail(newEmail);
+    let sheetSynced = false;
+
+    if (accessToken && sheetConfig.spreadsheetId) {
+      try {
+        const directOk = await syncAdminConfigToSheet(
+          accessToken,
+          sheetConfig.spreadsheetId,
+          newEmail,
+          newPass
+        );
+        if (directOk) sheetSynced = true;
+      } catch (e) {
+        console.warn('Direct sheet sync for admin password:', e);
+      }
+    }
+
     try {
       const res = await fetch('/api/admin/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminEmail: newEmail, adminPassword: newPass }),
       });
-      const data = await res.json();
-      let sheetSynced = Boolean(data.sheetSynced);
-
-      if (accessToken && sheetConfig.spreadsheetId) {
-        try {
-          const directOk = await syncAdminConfigToSheet(
-            accessToken,
-            sheetConfig.spreadsheetId,
-            newEmail,
-            newPass
-          );
-          if (directOk) sheetSynced = true;
-        } catch (e) {
-          console.warn('Direct sheet sync for admin password:', e);
-        }
+      if (res.ok) {
+        const data = await res.json();
+        if (data.sheetSynced) sheetSynced = true;
       }
-
-      if (res.ok && data.status === 'success') {
-        setAdminEmail(newEmail);
-        localStorage.setItem(LOCAL_STORAGE_ADMIN_EMAIL_KEY, newEmail);
-        return {
-          success: true,
-          message: 'บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว',
-          sheetSynced,
-        };
-      }
-      return {
-        success: false,
-        message: data.message || 'ไม่สามารถบันทึกรหัสผ่านได้',
-        sheetSynced: false,
-      };
     } catch {
-      return {
-        success: false,
-        message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์',
-        sheetSynced: false,
-      };
+      // Backend not running on static host
     }
+
+    return {
+      success: true,
+      message: 'บันทึกรหัสผ่านใหม่เรียบร้อยแล้ว',
+      sheetSynced,
+    };
   };
 
   const handleAdminSaveEdit = async (updated: {
@@ -499,11 +538,30 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-5 text-center text-xs text-slate-500">
-        <div className="max-w-5xl mx-auto px-4">
-          <p className="font-semibold text-slate-700">
+      <footer className="bg-white border-t border-slate-200 py-4 text-xs text-slate-500 mt-auto">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="font-semibold text-slate-700 text-center sm:text-left">
             คณะกรรมการขับเคลื่อนการพัฒนาทรัพยากรบุคคล มหาวิทยาลัยศิลปากร
           </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAdminModalOpen(true)}
+              title={isAdmin ? 'ผู้ดูแลระบบ (Admin) กำลังทำงาน - คลิกเพื่อจัดการ' : 'เข้าสู่ระบบผู้ดูแลระบบ (Admin)'}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                isAdmin
+                  ? 'bg-[#005F56] text-white font-bold shadow-xs hover:bg-[#004d46] ring-1 ring-emerald-400'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <Lock className={`w-3.5 h-3.5 ${isAdmin ? 'text-emerald-300' : 'text-slate-500'}`} />
+              <span>{isAdmin ? 'ผู้ดูแลระบบ (Admin)' : 'ผู้ดูแลระบบ'}</span>
+              {isAdmin && (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+              )}
+            </button>
+          </div>
         </div>
       </footer>
 

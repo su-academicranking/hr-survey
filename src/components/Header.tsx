@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Right actions: Stats & Sheet link & Admin button */}
+          {/* Right actions: Stats & Sheet link (Admin tools) */}
           <div className="flex items-center gap-2 justify-between sm:justify-end">
             <div className="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
               <span className="text-xs text-slate-600 font-medium">บันทึกแล้ว:</span>
@@ -65,24 +65,6 @@ export const Header: React.FC<HeaderProps> = ({
                 {totalSubmissions} / {totalMembers} ท่าน
               </span>
             </div>
-
-            {/* Admin Login Button matching Image 1 */}
-            <button
-              type="button"
-              onClick={onOpenAdminModal}
-              title={isAdmin ? 'ผู้ดูแลระบบ (Admin) กำลังทำงาน - คลิกเพื่อจัดการ' : 'เข้าสู่ระบบผู้ดูแลระบบ (Admin)'}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                isAdmin
-                  ? 'bg-[#005F56] text-white font-bold shadow-xs hover:bg-[#004d46] ring-1 ring-emerald-400'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <Lock className={`w-3.5 h-3.5 ${isAdmin ? 'text-emerald-300' : 'text-slate-500'}`} />
-              <span>{isAdmin ? 'ผู้ดูแลระบบ (Admin)' : 'ผู้ดูแลระบบ'}</span>
-              {isAdmin && (
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
-              )}
-            </button>
 
             {/* Admin-only action buttons: Shown strictly in Admin Mode */}
             {isAdmin && (
@@ -111,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={onRefreshData}
                   disabled={isRefreshing}
                   title="รีเฟรชข้อมูลล่าสุด (เฉพาะผู้ดูแลระบบ)"
-                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-50"
+                  className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
                 </button>
@@ -125,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('survey')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               activeTab === 'survey'
                 ? 'bg-[#005F56] text-white shadow-sm'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -138,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('summary')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               activeTab === 'summary'
                 ? 'bg-[#005F56] text-white shadow-sm'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'

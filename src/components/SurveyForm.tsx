@@ -169,7 +169,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
                   setSelectedMemberId(Number(val));
                 }
               }}
-              className="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-[#005F56] focus:border-[#005F56] transition-all"
+              className="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-[#005F56] focus:border-[#005F56] transition-all cursor-pointer"
               required
             >
               <option value="">-- กรุณาเลือกตำแหน่งกรรมการของท่าน --</option>
@@ -283,7 +283,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
                   key={committee.id}
                   type="button"
                   onClick={() => setSelectedSubCommitteeId(committee.id)}
-                  className={`w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  className={`w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer ${
                     isSelected
                       ? 'border-[#005F56] bg-emerald-50/50 shadow-sm ring-1 ring-[#005F56]'
                       : 'border-slate-250 bg-white hover:border-slate-400 hover:bg-slate-50/70'
@@ -355,7 +355,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-4 px-6 rounded-xl bg-[#005F56] hover:bg-[#004d46] active:bg-[#003d37] text-white text-sm sm:text-base font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 px-6 rounded-xl bg-[#005F56] hover:bg-[#004d46] active:bg-[#003d37] text-white text-sm sm:text-base font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {isSubmitting ? (
               <>
