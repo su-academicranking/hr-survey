@@ -41,7 +41,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
   sheetConfig,
   onOpenSheetModal,
 }) => {
-  const [emailInput, setEmailInput] = useState('admin@silpakorn.edu');
+  const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
           setSuccessMsg(null);
         }, 900);
       } else {
-        setErrorMsg(res.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง (รหัสเริ่มต้น: admin1234)');
+        setErrorMsg(res.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
       }
     } catch {
       setErrorMsg('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์');
@@ -343,9 +343,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
                     required
                   />
                 </div>
-                <p className="text-[11px] text-slate-400 pl-1">
-                  * รหัสผ่านเริ่มต้น: <span className="font-mono text-slate-600">admin1234</span>
-                </p>
               </div>
 
               {/* Bottom Actions matching screenshot */}

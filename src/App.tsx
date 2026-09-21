@@ -315,7 +315,7 @@ export default function App() {
       localStorage.setItem(LOCAL_STORAGE_ADMIN_EMAIL_KEY, email || 'admin@silpakorn.edu');
       return { success: true };
     }
-    return { success: false, message: 'รหัสผ่านไม่ถูกต้อง (รหัสเริ่มต้น: admin1234)' };
+    return { success: false, message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' };
   };
 
   const handleAdminLogout = () => {
