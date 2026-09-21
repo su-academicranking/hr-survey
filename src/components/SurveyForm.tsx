@@ -30,22 +30,11 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Check if selected member already has a submission
-  const existingSubmission =
-    selectedMemberId !== '' && selectedMemberId !== 'other'
-      ? submissions.find((s) => s.memberId === Number(selectedMemberId))
-      : undefined;
-
-  // When member changes, prefill name if they already submitted before
-  useEffect(() => {
-    if (selectedMemberId === 'other') {
-      setErrorMessage(null);
-    } else if (existingSubmission) {
-      setMemberName(existingSubmission.memberName);
-      setSelectedSubCommitteeId(existingSubmission.subCommitteeId);
-      setErrorMessage(null);
-    }
-  }, [selectedMemberId, existingSubmission]);
+  // Filter out committee members who have already made a submission (ตัดส่วนที่เลือกแล้วออก)
+  const availableMembers = committeeMembers.filter(
+    (member) => !submissions.some((s) => s.memberId === member.id)
+  );
+  const isAllFilled = availableMembers.length === 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,16 +72,22 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
           s.memberId > 20
       );
       if (existingOther) {
-        memberIdToSubmit = existingOther.memberId;
-      } else {
-        const currentMax = submissions.reduce((max, s) => Math.max(max, s.memberId), 20);
-        memberIdToSubmit = currentMax + 1;
+        setErrorMessage('ชื่อกรรมการท่านนี้ได้ทำการเลือกคณะอนุกรรมการไปแล้ว (เลือกได้ตำแหน่งละ 1 ชุดเท่านั้น)');
+        return;
       }
+      const currentMax = submissions.reduce((max, s) => Math.max(max, s.memberId), 20);
+      memberIdToSubmit = currentMax + 1;
       memberRoleToSubmit = customRole.trim();
     } else {
       const member = committeeMembers.find((m) => m.id === Number(selectedMemberId));
       if (!member) {
         setErrorMessage('ข้อมูลกรรมการไม่ถูกต้อง');
+        return;
+      }
+      // Check if already selected (ตัดสิทธิ์เลือกซ้ำ ให้เลือกได้ตำแหน่งละ 1 ชุด)
+      const alreadyTaken = submissions.some((s) => s.memberId === member.id);
+      if (alreadyTaken) {
+        setErrorMessage('ตำแหน่งนี้ได้ทำการเลือกคณะอนุกรรมการไปแล้ว (สามารถเลือกได้เพียงตำแหน่งละ 1 ชุดเท่านั้น)');
         return;
       }
       memberIdToSubmit = member.id;
@@ -117,7 +112,12 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
       setSuccessMessage(
         `บันทึกข้อมูลสำเร็จ: ท่านได้เลือก "${subCommittee.badgeLabel}" เรียบร้อยแล้ว`
       );
-      // Keep selected so they can see confirmation, but clear success message after 6s
+      // Reset form so the selected position is cleanly removed from available choices
+      setSelectedMemberId('');
+      setMemberName('');
+      setCustomRole('');
+      setSelectedSubCommitteeId(null);
+
       setTimeout(() => {
         setSuccessMessage(null);
       }, 6000);
@@ -150,12 +150,18 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
 
           {/* Member Role Dropdown */}
           <div>
-            <label
-              htmlFor="memberRoleSelect"
-              className="block text-xs sm:text-sm font-semibold text-slate-800 mb-1.5"
-            >
-              ตำแหน่งกรรมการตามคำสั่ง (20 ตำแหน่ง) <span className="text-rose-600">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1">
+              <label
+                htmlFor="memberRoleSelect"
+                className="text-xs sm:text-sm font-semibold text-slate-800"
+              >
+                ตำแหน่งกรรมการตามคำสั่ง (20 ตำแหน่ง) <span className="text-rose-600">*</span>
+              </label>
+              <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                คงเหลือให้เลือก {availableMembers.length} จาก {committeeMembers.length} ตำแหน่ง
+              </span>
+            </div>
+
             <select
               id="memberRoleSelect"
               value={selectedMemberId}
@@ -172,18 +178,16 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
               className="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-white text-slate-900 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-[#005F56] focus:border-[#005F56] transition-all cursor-pointer"
               required
             >
-              <option value="">-- กรุณาเลือกตำแหน่งกรรมการของท่าน --</option>
-              {committeeMembers.map((member) => {
-                const isSelectedByOther = submissions.some(
-                  (s) => s.memberId === member.id
-                );
-                return (
-                  <option key={member.id} value={member.id}>
-                    {member.id}. {member.role}{' '}
-                    {isSelectedByOther ? '(✓ มีผู้บันทึกแล้ว)' : ''}
-                  </option>
-                );
-              })}
+              <option value="">
+                {isAllFilled
+                  ? '-- ทุกตำแหน่งตามคำสั่งได้บันทึกครบถ้วนแล้ว --'
+                  : '-- กรุณาเลือกตำแหน่งกรรมการของท่าน --'}
+              </option>
+              {availableMembers.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.id}. {member.role}
+                </option>
+              ))}
               <option value="other">อื่นๆ (โปรดระบุ)</option>
             </select>
 
@@ -208,23 +212,6 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
               </div>
             )}
           </div>
-
-          {/* Already Submitted Warning / Notification */}
-          {existingSubmission && (
-            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2.5 text-xs sm:text-sm">
-              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold">
-                  ตำแหน่งนี้ได้บันทึกการเลือกไว้แล้ว
-                </p>
-                <p className="text-xs text-amber-800 mt-0.5">
-                  เลือก: <span className="font-semibold">{existingSubmission.subCommitteeName}</span> (โดย {existingSubmission.memberName})
-                  <br />
-                  หากท่านต้องการเปลี่ยนแปลงชุด สามารถเลือกชุดใหม่และกดบันทึกเพื่ออัปเดตข้อมูลได้ทันที
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* Member Full Name */}
           <div>

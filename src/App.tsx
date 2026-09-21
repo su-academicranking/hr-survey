@@ -29,10 +29,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  // Admin state
-  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
-    return localStorage.getItem(LOCAL_STORAGE_ADMIN_KEY) === 'true';
-  });
+  // Admin state - Strictly in-memory session; automatically logs out on page reload / refresh
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [adminEmail, setAdminEmail] = useState<string>(() => {
     return localStorage.getItem(LOCAL_STORAGE_ADMIN_EMAIL_KEY) || 'admin@silpakorn.edu';
   });
@@ -125,6 +123,10 @@ export default function App() {
         console.warn('Config fetch skipped:', err);
       }
     }
+
+    // Wipe any persisted admin login so reloading or sharing links always shows normal page
+    localStorage.removeItem(LOCAL_STORAGE_ADMIN_KEY);
+    setIsAdmin(false);
 
     loadConfig();
     fetchSubmissions(true);
@@ -325,7 +327,6 @@ export default function App() {
     if (isMatched) {
       setIsAdmin(true);
       setAdminEmail(email || 'admin@silpakorn.edu');
-      localStorage.setItem(LOCAL_STORAGE_ADMIN_KEY, 'true');
       localStorage.setItem(LOCAL_STORAGE_ADMIN_EMAIL_KEY, email || 'admin@silpakorn.edu');
       return { success: true };
     }
