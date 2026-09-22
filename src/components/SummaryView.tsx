@@ -393,9 +393,6 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                         >
                           ชุดที่ {committee.number}
                         </span>
-                        <span className="text-xs text-slate-500 font-medium">
-                          เป้าหมายความจุ ~{target} ท่าน
-                        </span>
                       </div>
                       <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
                         {committee.title}
@@ -412,11 +409,11 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                       <span
                         className={`text-xs font-bold px-2.5 py-1 rounded-md ${
                           count >= target
-                            ? 'bg-amber-100 text-amber-900'
+                            ? 'bg-rose-100 text-rose-800 border border-rose-200'
                             : 'bg-emerald-100 text-emerald-900'
                         }`}
                       >
-                        {remaining === 0 ? 'เต็มตามเป้า' : `ว่าง ${remaining} ที่นั่ง`}
+                        {remaining === 0 ? 'เต็ม' : `ว่าง ${remaining} ที่นั่ง`}
                       </span>
                     </div>
                   </div>

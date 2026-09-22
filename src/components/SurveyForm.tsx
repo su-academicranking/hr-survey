@@ -36,6 +36,25 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
   );
   const isAllFilled = availableMembers.length === 0;
 
+  // Check if all subcommittees are full
+  const allSubCommitteesFull = subCommittees.every((c) => {
+    const count = submissions.filter((s) => s.subCommitteeId === c.id).length;
+    return count >= c.targetCapacity;
+  });
+
+  // Automatically deselect if the currently selected committee becomes full
+  useEffect(() => {
+    if (selectedSubCommitteeId) {
+      const selectedComm = subCommittees.find((c) => c.id === selectedSubCommitteeId);
+      if (selectedComm) {
+        const count = submissions.filter((s) => s.subCommitteeId === selectedComm.id).length;
+        if (count >= selectedComm.targetCapacity) {
+          setSelectedSubCommitteeId(null);
+        }
+      }
+    }
+  }, [submissions, selectedSubCommitteeId, subCommittees]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -97,6 +116,16 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
     const subCommittee = subCommittees.find((c) => c.id === selectedSubCommitteeId);
     if (!subCommittee) {
       setErrorMessage('ข้อมูลคณะอนุกรรมการไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+      return;
+    }
+
+    // Check if sub-committee has reached quota
+    const currentCount = submissions.filter((s) => s.subCommitteeId === subCommittee.id).length;
+    if (currentCount >= subCommittee.targetCapacity) {
+      setErrorMessage(
+        `คณะอนุกรรมการชุดที่ ${subCommittee.number} (${subCommittee.title}) ครบตามจำนวนโควต้าแล้ว (${subCommittee.targetCapacity} ท่าน) กรุณาเลือกคณะอนุกรรมการชุดอื่น`
+      );
+      setSelectedSubCommitteeId(null);
       return;
     }
 
@@ -250,9 +279,16 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
               </h3>
             </div>
             <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-              คลิกที่ปุ่มเพื่อเลือก
+              คลิกที่ปุ่มเพื่อเลือก (ปิดรับเมื่อครบโควต้า)
             </span>
           </div>
+
+          {allSubCommitteesFull && (
+            <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>ทุกคณะอนุกรรมการมีผู้แสดงความจำนงครบตามโควต้าแล้ว (ครบ 20 ท่าน)</span>
+            </div>
+          )}
 
           {/* 3 Big, Touch-Friendly Buttons */}
           <div className="grid grid-cols-1 gap-3">
@@ -262,31 +298,42 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
               );
               const count = currentMembers.length;
               const target = committee.targetCapacity;
-              const remaining = Math.max(0, target - count);
+              const isFull = count >= target;
               const isSelected = selectedSubCommitteeId === committee.id;
 
               return (
                 <button
                   key={committee.id}
                   type="button"
-                  onClick={() => setSelectedSubCommitteeId(committee.id)}
-                  className={`w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer ${
-                    isSelected
-                      ? 'border-[#005F56] bg-emerald-50/50 shadow-sm ring-1 ring-[#005F56]'
-                      : 'border-slate-250 bg-white hover:border-slate-400 hover:bg-slate-50/70'
+                  disabled={isFull}
+                  onClick={() => {
+                    if (!isFull) {
+                      setSelectedSubCommitteeId(committee.id);
+                    }
+                  }}
+                  className={`w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    isFull
+                      ? 'border-slate-200 bg-slate-50/70 cursor-not-allowed select-none'
+                      : isSelected
+                      ? 'border-[#005F56] bg-emerald-50/50 shadow-sm ring-1 ring-[#005F56] cursor-pointer'
+                      : 'border-slate-250 bg-white hover:border-slate-400 hover:bg-slate-50/70 cursor-pointer'
                   }`}
                 >
                   <div className="flex items-start gap-3.5 flex-1">
-                    <div
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 shrink-0 transition-colors ${
-                        isSelected
-                          ? 'border-[#005F56] bg-[#005F56] text-white'
-                          : 'border-slate-400 bg-white'
-                      }`}
-                    >
-                      {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                    </div>
+                    {/* ตัดเฉพาะส่วนที่เลือก: หากครบโควต้าแล้ว ให้ตัดส่วนที่เลือก (วงกลมวิทยุ) ออก */}
+                    {!isFull && (
+                      <div
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-0.5 shrink-0 transition-colors ${
+                          isSelected
+                            ? 'border-[#005F56] bg-[#005F56] text-white'
+                            : 'border-slate-400 bg-white'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+                    )}
 
+                    {/* แสดงรายละเอียดชื่อชุดอนุกรรมการเหมือนเดิม */}
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
@@ -305,7 +352,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
                     </div>
                   </div>
 
-                  {/* Quota / Remaining Badge on Button */}
+                  {/* Quota on Button แสดงเหมือนเดิม */}
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 border-slate-200 pt-2 sm:pt-0 shrink-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-xs text-slate-500 font-medium">

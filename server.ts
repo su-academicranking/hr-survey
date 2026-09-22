@@ -304,6 +304,20 @@ app.post('/api/submissions', async (req, res) => {
     return;
   }
 
+  // Quota check: subCommittee 1 (7), 2 (7), 3 (6)
+  const subTarget = Number(subCommitteeId) === 3 ? 6 : 7;
+  const currentCount = submissionsStore.filter(
+    (s) => s.subCommitteeId === Number(subCommitteeId) && s.memberId !== Number(memberId)
+  ).length;
+
+  if (currentCount >= subTarget) {
+    res.status(400).json({
+      status: 'error',
+      message: `คณะอนุกรรมการชุดนี้มีผู้เลือกครบตามจำนวนโควต้าแล้ว (${subTarget} ท่าน) กรุณาเลือกคณะอนุกรรมการชุดอื่น`,
+    });
+    return;
+  }
+
   const newSubmission: SubmissionRecord = {
     id: `sub_${Date.now()}_${memberId}`,
     memberId: Number(memberId),

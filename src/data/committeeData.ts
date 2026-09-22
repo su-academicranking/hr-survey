@@ -309,6 +309,18 @@ function doPost(e) {
         break;
       }
     }
+
+    // Check quota for subCommitteeId:
+    var targetCap = (Number(payload.subCommitteeId) === 3) ? 6 : 7;
+    var currentSubCount = 0;
+    for (var i = 1; i < data.length; i++) {
+      if (Number(data[i][4]) === Number(payload.subCommitteeId) && Number(data[i][1]) !== Number(memberId)) {
+        currentSubCount++;
+      }
+    }
+    if (rowIndexToUpdate === -1 && currentSubCount >= targetCap) {
+      return responseJSON({ status: "error", message: "คณะอนุกรรมการชุดนี้มีผู้เลือกครบตามจำนวนโควต้าแล้ว (" + targetCap + " ท่าน)" });
+    }
     
     var rowData = [
       payload.id || Utilities.getUuid(),

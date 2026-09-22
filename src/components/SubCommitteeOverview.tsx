@@ -65,12 +65,23 @@ export const SubCommitteeOverview: React.FC<SubCommitteeOverviewProps> = ({
                   </span>
 
                   <div className="text-right">
-                    <span className="text-xl font-extrabold text-slate-900">
-                      {count}
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium ml-1">
-                      / {target} ท่าน
-                    </span>
+                    <div>
+                      <span className="text-xl font-extrabold text-slate-900">
+                        {count}
+                      </span>
+                      <span className="text-xs text-slate-500 font-medium ml-1">
+                        / {target} ท่าน
+                      </span>
+                    </div>
+                    {isFullOrHigh ? (
+                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                        เต็ม
+                      </span>
+                    ) : (
+                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                        ว่างอีก {remaining} ที่
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -85,7 +96,7 @@ export const SubCommitteeOverview: React.FC<SubCommitteeOverviewProps> = ({
                   <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
                     <div
                       className={`h-full transition-all duration-300 ${
-                        isFullOrHigh ? 'bg-amber-500' : 'bg-emerald-600'
+                        isFullOrHigh ? 'bg-rose-500' : 'bg-emerald-600'
                       }`}
                       style={{
                         width: `${Math.min(100, (count / target) * 100)}%`,
