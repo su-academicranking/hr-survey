@@ -173,7 +173,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
               1
             </span>
             <h3 className="text-sm sm:text-base font-bold text-slate-900">
-              ข้อมูลกรรมการผู้แสดงความจำนง
+              ข้อมูลกรรมการ
             </h3>
           </div>
 
@@ -262,7 +262,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
               />
             </div>
             <p className="text-[11px] text-slate-500 mt-1">
-              ระบุคำนำหน้าชื่อ และชื่อ-นามสกุล เพื่อใช้เป็นหลักฐานในการจัดทำคำสั่ง
+              ระบุคำนำหน้าชื่อ และชื่อ-นามสกุล
             </p>
           </div>
         </div>

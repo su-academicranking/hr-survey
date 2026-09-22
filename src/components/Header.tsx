@@ -43,9 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
               />
             </div>
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-medium mb-0.5">
-                <span>มหาวิทยาลัยศิลปากร</span>
-                <span>•</span>
+              <div className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-medium mb-0.5">
                 <span>Silpakorn University</span>
               </div>
               <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
