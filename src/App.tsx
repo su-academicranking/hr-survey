@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { COMMITTEE_MEMBERS, SUB_COMMITTEES } from './data/committeeData';
+import { COMMITTEE_MEMBERS, SUB_COMMITTEES, DEFAULT_APPS_SCRIPT_URL } from './data/committeeData';
 import { SurveySubmission, SheetConfig } from './types';
 import { Header } from './components/Header';
 import { SubCommitteeOverview } from './components/SubCommitteeOverview';
@@ -73,7 +73,7 @@ export default function App() {
 
   const [sheetConfig, setSheetConfig] = useState<SheetConfig>(() => {
     const fromUrl = getScriptUrlFromLocation();
-    const savedUrl = fromUrl || localStorage.getItem(LOCAL_STORAGE_URL_KEY) || '';
+    const savedUrl = fromUrl || localStorage.getItem(LOCAL_STORAGE_URL_KEY) || DEFAULT_APPS_SCRIPT_URL;
     const savedSheetId = localStorage.getItem(LOCAL_STORAGE_SHEET_ID_KEY) || '';
     const savedSheetUrl = localStorage.getItem(LOCAL_STORAGE_SHEET_URL_KEY) || '';
     return {
@@ -98,7 +98,7 @@ export default function App() {
       sheetConfig.appScriptUrl ||
       getScriptUrlFromLocation() ||
       localStorage.getItem(LOCAL_STORAGE_URL_KEY) ||
-      '';
+      DEFAULT_APPS_SCRIPT_URL;
 
     try {
       // 1. First attempt backend API (if server is running)
@@ -108,10 +108,18 @@ export default function App() {
         const res = await fetch(`/api/submissions${query}`, { cache: 'no-store' });
         if (res.ok) {
           const json = await res.json();
-          if (json.status === 'success' && Array.isArray(json.data) && json.data.length > 0) {
-            setSubmissions(json.data);
+          if (json.status === 'success' && Array.isArray(json.data)) {
+            const cleanData = json.data.filter(
+              (s: any) =>
+                s &&
+                s.id &&
+                Number(s.memberId) > 0 &&
+                String(s.memberName || '').trim().length > 0 &&
+                Number(s.subCommitteeId) > 0
+            );
+            setSubmissions(cleanData);
             try {
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.data));
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanData));
             } catch {
               // ignore
             }
@@ -133,9 +141,18 @@ export default function App() {
           if (scriptRes.ok) {
             const json = await scriptRes.json();
             if (json && json.status === 'success' && Array.isArray(json.data)) {
-              setSubmissions(json.data);
+              // กรองแถวที่ถูกล้าง หรือไม่มีชื่อ/คณะอนุกรรมการ ออกอย่างเด็ดขาด
+              const cleanData = json.data.filter(
+                (s: any) =>
+                  s &&
+                  s.id &&
+                  Number(s.memberId) > 0 &&
+                  String(s.memberName || '').trim().length > 0 &&
+                  Number(s.subCommitteeId) > 0
+              );
+              setSubmissions(cleanData);
               try {
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(json.data));
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cleanData));
               } catch {
                 // ignore
               }
@@ -194,9 +211,9 @@ export default function App() {
         console.warn('Config fetch skipped:', err);
       }
 
-      // Fallback to localStorage
+      // Fallback to localStorage or permanent DEFAULT_APPS_SCRIPT_URL (ensures Incognito & fresh devices remember it)
       if (!loadedUrl) {
-        loadedUrl = localStorage.getItem(LOCAL_STORAGE_URL_KEY) || '';
+        loadedUrl = localStorage.getItem(LOCAL_STORAGE_URL_KEY) || DEFAULT_APPS_SCRIPT_URL;
       }
 
       if (loadedUrl) {
@@ -568,7 +585,25 @@ export default function App() {
       console.warn('Backend delete failed:', err);
     }
 
-    // 3. Direct Google Sheets sync if connected
+    // 3. Direct Google Apps Script delete if connected (ensures entire row in Google Sheet is deleted without residual id/numbers)
+    const scriptUrl = sheetConfig.appScriptUrl || DEFAULT_APPS_SCRIPT_URL;
+    if (scriptUrl && scriptUrl.includes('script.google.com')) {
+      try {
+        await fetch(scriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'deleteSubmission',
+            memberId: memberId,
+          }),
+          mode: 'no-cors',
+        });
+      } catch (scriptErr) {
+        console.warn('Direct Apps Script delete dispatch error:', scriptErr);
+      }
+    }
+
+    // 4. Direct Google Sheets sync if connected via OAuth
     if (accessToken && sheetConfig.spreadsheetId) {
       try {
         await syncAllSubmissionsToSheet(accessToken, sheetConfig.spreadsheetId, nextList);
@@ -590,6 +625,23 @@ export default function App() {
       });
     } catch (err) {
       console.warn('Backend clear all failed:', err);
+    }
+
+    // Direct Google Apps Script clear all
+    const scriptUrl = sheetConfig.appScriptUrl || DEFAULT_APPS_SCRIPT_URL;
+    if (scriptUrl && scriptUrl.includes('script.google.com')) {
+      try {
+        await fetch(scriptUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'clearAllSubmissions',
+          }),
+          mode: 'no-cors',
+        });
+      } catch (scriptErr) {
+        console.warn('Direct Apps Script clear all error:', scriptErr);
+      }
     }
 
     if (accessToken && sheetConfig.spreadsheetId) {

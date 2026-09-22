@@ -27,6 +27,9 @@ const PUBLIC_CONFIG_FILE = path.join(process.cwd(), 'public', 'app-config.json')
 const DIST_CONFIG_FILE = path.join(process.cwd(), 'dist', 'app-config.json');
 const DOCS_CONFIG_FILE = path.join(process.cwd(), 'docs', 'app-config.json');
 
+const DEFAULT_APPS_SCRIPT_URL =
+  'https://script.google.com/macros/s/AKfycbxhPWbAeYKPYI6vOx6TskwYpK0ZaTA-TsAo0TUGXWVa0za7sRnY_w-5xfFpRe6E5SICxw/exec';
+
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
   try {
@@ -78,6 +81,10 @@ if (!configuredAppScriptUrl && fs.existsSync(PUBLIC_CONFIG_FILE)) {
   }
 }
 
+if (!configuredAppScriptUrl) {
+  configuredAppScriptUrl = DEFAULT_APPS_SCRIPT_URL;
+}
+
 function persistAppScriptUrl(url: string) {
   configuredAppScriptUrl = url.trim();
   const configData = JSON.stringify({ appScriptUrl: configuredAppScriptUrl }, null, 2);
@@ -114,6 +121,9 @@ function persistAppScriptUrl(url: string) {
     // ignore
   }
 }
+
+// Automatically ensure config files are populated on boot
+persistAppScriptUrl(configuredAppScriptUrl);
 
 // Admin Credentials (default credentials hashed)
 const DEFAULT_ADMIN_HASH = 'ac9689e2272427085e35b9d3e3e8bed88cb3434828b43b86fc0596cad4c6e270';
@@ -245,7 +255,15 @@ app.get('/api/submissions', async (req, res) => {
         try {
           const result = JSON.parse(text);
           if (result && Array.isArray(result.data)) {
-            submissionsStore = result.data;
+            // กรองเฉพาะรายการที่มีข้อมูลจริง ไม่เอาแถวที่ว่างหรือไม่มีชื่อ/คณะอนุกรรมการ
+            submissionsStore = result.data.filter(
+              (s: any) =>
+                s &&
+                s.id &&
+                Number(s.memberId) > 0 &&
+                String(s.memberName || '').trim().length > 0 &&
+                Number(s.subCommitteeId) > 0
+            );
             persistSubmissions();
           }
         } catch {
@@ -255,6 +273,20 @@ app.get('/api/submissions', async (req, res) => {
     } catch (err) {
       console.error('Apps script sync error:', err);
     }
+  }
+
+  // เผื่อใน store มีรายการขยะตกค้าง กรองออกให้สะอาด
+  const validSubmissions = submissionsStore.filter(
+    (s) =>
+      s &&
+      s.id &&
+      Number(s.memberId) > 0 &&
+      String(s.memberName || '').trim().length > 0 &&
+      Number(s.subCommitteeId) > 0
+  );
+  if (validSubmissions.length !== submissionsStore.length) {
+    submissionsStore = validSubmissions;
+    persistSubmissions();
   }
 
   res.json({
@@ -370,9 +402,26 @@ app.put('/api/submissions/:memberId', async (req, res) => {
   });
 });
 
-app.delete('/api/submissions', (req, res) => {
+app.delete('/api/submissions', async (req, res) => {
   submissionsStore = [];
   persistSubmissions();
+
+  // Forward clear all to Apps Script if configured
+  if (configuredAppScriptUrl) {
+    try {
+      await fetch(configuredAppScriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'clearAllSubmissions',
+        }),
+        redirect: 'follow',
+      });
+    } catch (err) {
+      console.error('Failed to forward clear all to Apps Script:', err);
+    }
+  }
+
   res.json({ status: 'success', message: 'ล้างข้อมูลการเลือกทั้งหมดแล้ว', allSubmissions: [] });
 });
 
@@ -381,7 +430,7 @@ app.delete('/api/submissions/:memberId', async (req, res) => {
   submissionsStore = submissionsStore.filter((s) => s.memberId !== memberId);
   persistSubmissions();
 
-  // Forward deletion to Apps Script if configured
+  // Forward deletion to Apps Script if configured (deletes entire row)
   if (configuredAppScriptUrl) {
     try {
       await fetch(configuredAppScriptUrl, {

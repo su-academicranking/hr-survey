@@ -2,6 +2,10 @@ import { CommitteeMember, SubCommittee } from '../types';
 
 export const SILPAKORN_LOGO_URL = 'https://lh3.googleusercontent.com/d/1QdEWReQB6ujnKpX9O9q1Gx1i7akY9Wqb';
 
+// Permanent default Web App URL for Google Apps Script to ensure data connects seamlessly across all modes (including Incognito and static deployments)
+export const DEFAULT_APPS_SCRIPT_URL =
+  'https://script.google.com/macros/s/AKfycbxhPWbAeYKPYI6vOx6TskwYpK0ZaTA-TsAo0TUGXWVa0za7sRnY_w-5xfFpRe6E5SICxw/exec';
+
 export const COMMITTEE_MEMBERS: CommitteeMember[] = [
   {
     id: 1,
@@ -204,15 +208,22 @@ function doGet(e) {
     
     for (var i = 1; i < data.length; i++) {
       var row = data[i];
-      if (!row[0]) continue;
+      // ต้องมี id, รหัสกรรมการ, ชื่อ-นามสกุล และคณะอนุกรรมการ ไม่เป็นค่าว่าง เพื่อไม่นับแถวที่ถูกล้าง
+      var rowId = row[0] ? String(row[0]).trim() : "";
+      var memberIdVal = Number(row[1]);
+      var memberNameVal = row[3] ? String(row[3]).trim() : "";
+      var subCommIdVal = Number(row[4]);
+      
+      if (!rowId || !memberIdVal || !memberNameVal || !subCommIdVal) continue;
+      
       submissions.push({
-        id: String(row[0]),
-        memberId: Number(row[1]),
-        memberRole: String(row[2]),
-        memberName: String(row[3]),
-        subCommitteeId: Number(row[4]),
-        subCommitteeName: String(row[5]),
-        submittedAt: String(row[6])
+        id: rowId,
+        memberId: memberIdVal,
+        memberRole: String(row[2] || "").trim(),
+        memberName: memberNameVal,
+        subCommitteeId: subCommIdVal,
+        subCommitteeName: String(row[5] || "").trim(),
+        submittedAt: String(row[6] || "").trim()
       });
     }
     
@@ -253,21 +264,38 @@ function doPost(e) {
       });
     }
 
-    // Action 2: Delete Submission by Admin
+    // Action 2: Delete Submission by Admin (ลบแถวทิ้งทั้งหมด ไม่คงแถวหรือรหัสกรรมการค้างไว้)
     if (payload.action === "deleteSubmission") {
       var sheet = getOrCreateSheet();
       var data = sheet.getDataRange().getValues();
       var memberIdToDelete = Number(payload.memberId);
-      for (var i = 1; i < data.length; i++) {
+      var deleted = false;
+      
+      // วนลูปจากล่างขึ้นบนเพื่อให้ลบแถวได้อย่างปลอดภัย
+      for (var i = data.length - 1; i >= 1; i--) {
         if (Number(data[i][1]) === memberIdToDelete) {
           sheet.deleteRow(i + 1);
-          return responseJSON({ status: "success", message: "Deleted row successfully" });
+          deleted = true;
         }
+      }
+      
+      if (deleted) {
+        return responseJSON({ status: "success", message: "Deleted row completely" });
       }
       return responseJSON({ status: "not_found", message: "Record not found" });
     }
+
+    // Action 3: Clear All Submissions (ล้างข้อมูลทั้งหมด ลบแถวข้อมูลทั้งหมดทิ้ง เหลือเฉพาะหัวตารางแถว 1)
+    if (payload.action === "clearAllSubmissions") {
+      var sheet = getOrCreateSheet();
+      var lastRow = sheet.getLastRow();
+      if (lastRow > 1) {
+        sheet.deleteRows(2, lastRow - 1);
+      }
+      return responseJSON({ status: "success", message: "Cleared all submissions completely" });
+    }
     
-    // Action 3: Add or Edit Submission
+    // Action 4: Add or Edit Submission
     var sheet = getOrCreateSheet();
     var data = sheet.getDataRange().getValues();
     
