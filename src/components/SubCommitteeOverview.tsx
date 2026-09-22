@@ -87,7 +87,7 @@ export const SubCommitteeOverview: React.FC<SubCommitteeOverviewProps> = ({
                 </div>
 
                 {/* Sub-committee Title */}
-                <h3 className="text-sm font-bold text-slate-900 leading-snug mb-3 min-h-[44px]">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug mb-3 sm:min-h-[44px] break-words">
                   {committee.title}
                 </h3>
 
@@ -107,11 +107,11 @@ export const SubCommitteeOverview: React.FC<SubCommitteeOverviewProps> = ({
                 </div>
 
                 {/* Members list preview */}
-                <div className="mt-3.5 pt-3 border-t border-slate-100">
+                <div className="mt-3 pt-2.5 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => toggleExpand(committee.id)}
-                    className="w-full flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-slate-900 py-1"
+                    className="w-full flex items-center justify-between text-xs font-semibold text-slate-700 hover:text-slate-900 py-1 cursor-pointer"
                   >
                     <span className="flex items-center gap-1.5">
                       <span>รายชื่อผู้เลือกชุดนี้</span>
@@ -138,15 +138,15 @@ export const SubCommitteeOverview: React.FC<SubCommitteeOverviewProps> = ({
                             key={sub.id}
                             className="text-xs p-2 rounded-lg bg-slate-50 border border-slate-150 flex flex-col gap-0.5"
                           >
-                            <div className="font-semibold text-slate-900 flex items-center justify-between">
-                              <span>
+                            <div className="font-semibold text-slate-900 flex items-center justify-between gap-1">
+                              <span className="break-words">
                                 {idx + 1}. {sub.memberName}
                               </span>
-                              <span className="text-[10px] text-slate-500 font-medium">
+                              <span className="text-[10px] text-slate-500 font-medium shrink-0">
                                 {formatThaiTime(sub.submittedAt)}
                               </span>
                             </div>
-                            <div className="text-[11px] text-slate-600 truncate">
+                            <div className="text-[11px] text-slate-600 break-words leading-tight">
                               {sub.memberRole}
                             </div>
                           </div>

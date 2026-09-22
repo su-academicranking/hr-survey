@@ -4,7 +4,7 @@ export const SILPAKORN_LOGO_URL = 'https://lh3.googleusercontent.com/d/1QdEWReQB
 
 // Permanent default Web App URL for Google Apps Script to ensure data connects seamlessly across all modes (including Incognito and static deployments)
 export const DEFAULT_APPS_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbxhPWbAeYKPYI6vOx6TskwYpK0ZaTA-TsAo0TUGXWVa0za7sRnY_w-5xfFpRe6E5SICxw/exec';
+  'https://script.google.com/macros/s/AKfycbxVhtvUjR0dmaYbeB95iGkeR9J9olGwjC-8hKidNv2CJhyZ0zmBiWLyFQ5fs1FdXIW4Sw/exec';
 
 export const COMMITTEE_MEMBERS: CommitteeMember[] = [
   {

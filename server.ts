@@ -28,7 +28,7 @@ const DIST_CONFIG_FILE = path.join(process.cwd(), 'dist', 'app-config.json');
 const DOCS_CONFIG_FILE = path.join(process.cwd(), 'docs', 'app-config.json');
 
 const DEFAULT_APPS_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbxhPWbAeYKPYI6vOx6TskwYpK0ZaTA-TsAo0TUGXWVa0za7sRnY_w-5xfFpRe6E5SICxw/exec';
+  'https://script.google.com/macros/s/AKfycbxVhtvUjR0dmaYbeB95iGkeR9J9olGwjC-8hKidNv2CJhyZ0zmBiWLyFQ5fs1FdXIW4Sw/exec';
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -58,9 +58,9 @@ function persistSubmissions() {
   }
 }
 
-// Load configured AppScript URL from environment, data directory, or public app-config.json
-let configuredAppScriptUrl = process.env.APPS_SCRIPT_URL || '';
-if (!configuredAppScriptUrl && fs.existsSync(SERVER_CONFIG_FILE)) {
+// Load configured AppScript URL from data directory, public app-config.json, or environment/default
+let configuredAppScriptUrl = '';
+if (fs.existsSync(SERVER_CONFIG_FILE)) {
   try {
     const savedConfig = JSON.parse(fs.readFileSync(SERVER_CONFIG_FILE, 'utf-8'));
     if (savedConfig?.appScriptUrl) {
@@ -82,7 +82,7 @@ if (!configuredAppScriptUrl && fs.existsSync(PUBLIC_CONFIG_FILE)) {
 }
 
 if (!configuredAppScriptUrl) {
-  configuredAppScriptUrl = DEFAULT_APPS_SCRIPT_URL;
+  configuredAppScriptUrl = DEFAULT_APPS_SCRIPT_URL || process.env.APPS_SCRIPT_URL || '';
 }
 
 function persistAppScriptUrl(url: string) {

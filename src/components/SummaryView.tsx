@@ -217,9 +217,9 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
               key={committee.id}
               className="rounded-xl border border-slate-200 hover:border-slate-300 shadow-2xs transition-all duration-150 flex flex-col justify-between bg-white"
             >
-              <div className="p-4">
+              <div className="p-3.5 sm:p-4">
                 {/* Header Badge & Number */}
-                <div className="flex items-start justify-between gap-2 mb-2.5">
+                <div className="flex items-start justify-between gap-2 mb-2">
                   <span
                     className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold ${committee.accentColor.badgeBg} ${committee.accentColor.badgeText}`}
                   >
@@ -227,7 +227,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                   </span>
 
                   <div className="text-right">
-                    <span className="text-xl font-extrabold text-slate-900">
+                    <span className="text-lg sm:text-xl font-extrabold text-slate-900">
                       {count}
                     </span>
                     <span className="text-xs text-slate-500 font-medium ml-1">
@@ -237,7 +237,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 </div>
 
                 {/* Sub-committee Title */}
-                <h3 className="text-sm font-bold text-slate-900 leading-snug mb-3 min-h-[44px]">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug mb-3 sm:min-h-[44px] break-words">
                   {committee.title}
                 </h3>
 
@@ -257,7 +257,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                 </div>
 
                 {/* Members list preview */}
-                <div className="mt-3.5 pt-3 border-t border-slate-100">
+                <div className="mt-3 pt-2.5 border-t border-slate-100">
                   <button
                     type="button"
                     onClick={() => toggleExpandCommittee(committee.id)}
@@ -288,15 +288,15 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                             key={sub.id}
                             className="text-xs p-2 rounded-lg bg-slate-50 border border-slate-150 flex flex-col gap-0.5"
                           >
-                            <div className="font-semibold text-slate-900 flex items-center justify-between">
-                              <span>
+                            <div className="font-semibold text-slate-900 flex items-center justify-between gap-1">
+                              <span className="break-words">
                                 {idx + 1}. {sub.memberName}
                               </span>
-                              <span className="text-[10px] text-slate-500 font-medium">
+                              <span className="text-[10px] text-slate-500 font-medium shrink-0">
                                 {formatThaiTime(sub.submittedAt)}
                               </span>
                             </div>
-                            <div className="text-[11px] text-slate-600 truncate">
+                            <div className="text-[11px] text-slate-600 break-words leading-tight">
                               {sub.memberRole}
                             </div>
                           </div>
@@ -312,23 +312,23 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       </div>
 
       {/* Action Bar & Member List Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 sm:p-3.5 rounded-xl border border-slate-200">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <button
             type="button"
             onClick={() => setActiveTab('all')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'all'
                 ? 'bg-[#005F56] text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
-            รายนามทั้ง 3 คณะอนุกรรมการ ({totalSubmissions})
+            รายนามทั้ง 3 ชุด ({totalSubmissions})
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('unselected')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'unselected'
                 ? 'bg-[#005F56] text-white'
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -338,11 +338,11 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <button
             type="button"
             onClick={handleCopySummary}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 transition-colors border border-slate-200"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 transition-colors border border-slate-200 whitespace-nowrap"
           >
             {copied ? (
               <>
@@ -360,7 +360,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
           <button
             type="button"
             onClick={handleExportCSV}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white transition-colors shadow-2xs"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white transition-colors shadow-2xs whitespace-nowrap"
           >
             <Download className="w-3.5 h-3.5" />
             <span>ดาวน์โหลด CSV</span>
@@ -419,90 +419,152 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Members Table */}
-                  <div className="p-4 sm:p-5">
+                  {/* Members Table / Mobile Cards */}
+                  <div className="p-3.5 sm:p-5">
                     {members.length === 0 ? (
                       <p className="text-xs sm:text-sm text-slate-400 italic text-center py-6">
                         ยังไม่มีกรรมการท่านใดเลือกชุดนี้
                       </p>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-xs sm:text-sm">
-                          <thead>
-                            <tr className="border-b border-slate-200 text-slate-500 text-[11px] uppercase tracking-wider font-semibold">
-                              <th className="py-2.5 px-3 w-12 text-center">ลำดับ</th>
-                              <th className="py-2.5 px-3">ชื่อ-นามสกุล</th>
-                              <th className="py-2.5 px-3">ตำแหน่งกรรมการตามคำสั่ง</th>
-                              <th className="py-2.5 px-3 text-right">วันเวลาที่เลือก</th>
+                      <>
+                        {/* Mobile list view (< sm screen) */}
+                        <div className="block sm:hidden divide-y divide-slate-100">
+                          {members.map((sub, itemIdx) => (
+                            <div key={sub.id} className="py-3 first:pt-0 last:pb-0 space-y-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-bold flex items-center justify-center shrink-0">
+                                    {itemIdx + 1}
+                                  </span>
+                                  <span className="font-bold text-slate-900 text-xs break-words">
+                                    {sub.memberName}
+                                  </span>
+                                </div>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100/90 text-slate-600 text-[10px] font-medium shrink-0">
+                                  <Clock className="w-3 h-3 text-slate-400" />
+                                  <span>{formatThaiDateTime(sub.submittedAt)}</span>
+                                </span>
+                              </div>
+
+                              <div className="pl-7">
+                                <span className="inline-block px-2 py-0.5 rounded bg-slate-50 border border-slate-200/80 text-slate-700 text-[11px] leading-tight break-words">
+                                  {sub.memberRole}
+                                </span>
+                              </div>
+
                               {isAdmin && (
-                                <th className="py-2.5 px-3 text-center w-36">
-                                  จัดการ (Admin)
-                                </th>
+                                <div className="pl-7 pt-1 flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (onEditSubmission) {
+                                        onEditSubmission(sub);
+                                      }
+                                    }}
+                                    className="px-2.5 py-1 rounded-md bg-emerald-50 text-[#005F56] border border-emerald-300 font-bold text-[11px] flex items-center gap-1"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                    <span>แก้ไข</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setDeletingSubmission(sub);
+                                    }}
+                                    className="px-2.5 py-1 rounded-md bg-rose-50 text-rose-700 border border-rose-200 font-semibold text-[11px] flex items-center gap-1"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                    <span>ลบ</span>
+                                  </button>
+                                </div>
                               )}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 font-normal">
-                            {members.map((sub, itemIdx) => (
-                              <tr
-                                key={sub.id}
-                                className="hover:bg-slate-50 transition-colors"
-                              >
-                                <td className="py-3 px-3 text-center text-slate-500 font-medium">
-                                  {itemIdx + 1}
-                                </td>
-                                <td className="py-3 px-3 font-semibold text-slate-900">
-                                  {sub.memberName}
-                                </td>
-                                <td className="py-3 px-3 text-slate-700">
-                                  <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-xs">
-                                    {sub.memberRole}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3 text-right whitespace-nowrap">
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100/80 border border-slate-200/60 text-slate-700 text-xs font-medium">
-                                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                    <span>{formatThaiDateTime(sub.submittedAt)}</span>
-                                  </span>
-                                </td>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Desktop & Tablet Table view (>= sm screen) */}
+                        <div className="hidden sm:block overflow-x-auto">
+                          <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                            <thead>
+                              <tr className="border-b border-slate-200 text-slate-500 text-[11px] uppercase tracking-wider font-semibold">
+                                <th className="py-2.5 px-3 w-12 text-center">ลำดับ</th>
+                                <th className="py-2.5 px-3">ชื่อ-นามสกุล</th>
+                                <th className="py-2.5 px-3">ตำแหน่งกรรมการตามคำสั่ง</th>
+                                <th className="py-2.5 px-3 text-right">วันเวลาที่เลือก</th>
                                 {isAdmin && (
-                                  <td className="py-3 px-3 text-center whitespace-nowrap">
-                                    <div className="flex items-center justify-center gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          if (onEditSubmission) {
-                                            onEditSubmission(sub);
-                                          }
-                                        }}
-                                        className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#005F56] border border-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
-                                        title="แก้ไขการเลือกนี้"
-                                      >
-                                        <Edit3 className="w-3.5 h-3.5" />
-                                        <span>แก้ไข</span>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          setDeletingSubmission(sub);
-                                        }}
-                                        className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold text-xs flex items-center gap-1.5 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
-                                        title="ลบรายการเพื่อเปิดให้เลือกใหม่"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                        <span>ลบ</span>
-                                      </button>
-                                    </div>
-                                  </td>
+                                  <th className="py-2.5 px-3 text-center w-36">
+                                    จัดการ (Admin)
+                                  </th>
                                 )}
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-normal">
+                              {members.map((sub, itemIdx) => (
+                                <tr
+                                  key={sub.id}
+                                  className="hover:bg-slate-50 transition-colors"
+                                >
+                                  <td className="py-3 px-3 text-center text-slate-500 font-medium">
+                                    {itemIdx + 1}
+                                  </td>
+                                  <td className="py-3 px-3 font-semibold text-slate-900">
+                                    {sub.memberName}
+                                  </td>
+                                  <td className="py-3 px-3 text-slate-700">
+                                    <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-800 text-xs">
+                                      {sub.memberRole}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-3 text-right whitespace-nowrap">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100/80 border border-slate-200/60 text-slate-700 text-xs font-medium">
+                                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                      <span>{formatThaiDateTime(sub.submittedAt)}</span>
+                                    </span>
+                                  </td>
+                                  {isAdmin && (
+                                    <td className="py-3 px-3 text-center whitespace-nowrap">
+                                      <div className="flex items-center justify-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            if (onEditSubmission) {
+                                              onEditSubmission(sub);
+                                            }
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#005F56] border border-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
+                                          title="แก้ไขการเลือกนี้"
+                                        >
+                                          <Edit3 className="w-3.5 h-3.5" />
+                                          <span>แก้ไข</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setDeletingSubmission(sub);
+                                          }}
+                                          className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold text-xs flex items-center gap-1.5 transition-all shadow-2xs hover:shadow-xs active:scale-95 cursor-pointer"
+                                          title="ลบรายการเพื่อเปิดให้เลือกใหม่"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                          <span>ลบ</span>
+                                        </button>
+                                      </div>
+                                    </td>
+                                  )}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
