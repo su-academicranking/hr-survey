@@ -1,6 +1,7 @@
 import React from 'react';
 import { SubCommittee, SurveySubmission } from '../types';
 import { Users, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
+import { formatThaiTime } from '../utils/dateUtils';
 
 interface SubCommitteeOverviewProps {
   subCommittees: SubCommittee[];
@@ -141,8 +142,8 @@ export const SubCommitteeOverview: React.FC<SubCommitteeOverviewProps> = ({
                               <span>
                                 {idx + 1}. {sub.memberName}
                               </span>
-                              <span className="text-[10px] text-slate-400">
-                                {sub.submittedAt.split(' ')[1] || ''}
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                {formatThaiTime(sub.submittedAt)}
                               </span>
                             </div>
                             <div className="text-[11px] text-slate-600 truncate">

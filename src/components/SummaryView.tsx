@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { CommitteeMember, SubCommittee, SurveySubmission } from '../types';
+import { formatThaiDateTime, formatThaiTime } from '../utils/dateUtils';
 import {
   Users,
   CheckCircle2,
@@ -114,7 +115,7 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
       `"${s.memberName.replace(/"/g, '""')}"`,
       `"ชุดที่ ${s.subCommitteeId}"`,
       `"${s.subCommitteeName.replace(/"/g, '""')}"`,
-      `"${s.submittedAt}"`,
+      `"${formatThaiDateTime(s.submittedAt)}"`,
     ]);
 
     const csvContent =
@@ -291,8 +292,8 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                               <span>
                                 {idx + 1}. {sub.memberName}
                               </span>
-                              <span className="text-[10px] text-slate-400">
-                                {sub.submittedAt.split(' ')[1] || ''}
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                {formatThaiTime(sub.submittedAt)}
                               </span>
                             </div>
                             <div className="text-[11px] text-slate-600 truncate">
@@ -457,8 +458,11 @@ export const SummaryView: React.FC<SummaryViewProps> = ({
                                     {sub.memberRole}
                                   </span>
                                 </td>
-                                <td className="py-3 px-3 text-right text-slate-500 text-xs font-mono">
-                                  {sub.submittedAt}
+                                <td className="py-3 px-3 text-right whitespace-nowrap">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100/80 border border-slate-200/60 text-slate-700 text-xs font-medium">
+                                    <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span>{formatThaiDateTime(sub.submittedAt)}</span>
+                                  </span>
                                 </td>
                                 {isAdmin && (
                                   <td className="py-3 px-3 text-center whitespace-nowrap">

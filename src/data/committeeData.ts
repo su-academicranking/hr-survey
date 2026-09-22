@@ -197,8 +197,14 @@ function doGet(e) {
       return responseJSON({ status: "not_configured" });
     }
 
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    try {
+      ss.setSpreadsheetTimeZone("Asia/Bangkok");
+    } catch (e) {
+      // ignore
+    }
     var sheet = getOrCreateSheet();
-    var data = sheet.getDataRange().getValues();
+    var data = sheet.getDataRange().getDisplayValues();
     
     if (data.length <= 1) {
       return responseJSON({ status: "success", data: [] });
@@ -329,7 +335,7 @@ function doPost(e) {
       payload.memberName,
       payload.subCommitteeId,
       payload.subCommitteeName,
-      payload.submittedAt || new Date().toLocaleString("th-TH")
+      payload.submittedAt || Utilities.formatDate(new Date(), "Asia/Bangkok", "dd/MM/yyyy HH:mm:ss")
     ];
     
     if (rowIndexToUpdate > 0) {
