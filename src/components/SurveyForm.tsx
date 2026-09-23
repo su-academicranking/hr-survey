@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CommitteeMember, SubCommittee, SurveySubmission } from '../types';
-import { Check, AlertCircle, Send, UserCheck, ShieldCheck } from 'lucide-react';
+import { Check, AlertCircle, Send, UserCheck, ShieldCheck, X } from 'lucide-react';
 
 interface SurveyFormProps {
   committeeMembers: CommitteeMember[];
@@ -29,12 +29,24 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
   const [selectedSubCommitteeId, setSelectedSubCommitteeId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
   // Filter out committee members who have already made a submission (ตัดส่วนที่เลือกแล้วออก)
   const availableMembers = committeeMembers.filter(
     (member) => !submissions.some((s) => s.memberId === member.id)
   );
   const isAllFilled = availableMembers.length === 0;
+
+  // Selected committee object
+  const selectedSubCommittee = subCommittees.find(
+    (c) => c.id === selectedSubCommitteeId
+  );
+
+  // Resolved role string for selected member
+  const pendingMemberRole =
+    selectedMemberId === 'other'
+      ? customRole.trim()
+      : committeeMembers.find((m) => m.id === Number(selectedMemberId))?.role || '';
 
   // Check if all subcommittees are full
   const allSubCommitteesFull = subCommittees.every((c) => {
@@ -50,12 +62,25 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
         const count = submissions.filter((s) => s.subCommitteeId === selectedComm.id).length;
         if (count >= selectedComm.targetCapacity) {
           setSelectedSubCommitteeId(null);
+          setIsConfirmDialogOpen(false);
         }
       }
     }
   }, [submissions, selectedSubCommitteeId, subCommittees]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle ESC key to close confirmation dialog
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isConfirmDialogOpen && !isSubmitting) {
+        setIsConfirmDialogOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isConfirmDialogOpen, isSubmitting]);
+
+  // Validation before opening confirmation dialog
+  const handleInitiateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -80,11 +105,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
       return;
     }
 
-    let memberIdToSubmit: number;
-    let memberRoleToSubmit: string;
-
     if (selectedMemberId === 'other') {
-      // Check if this person already has a submission under 'other'
       const existingOther = submissions.find(
         (s) =>
           s.memberName.trim().toLowerCase() === memberName.trim().toLowerCase() &&
@@ -94,6 +115,46 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
         setErrorMessage('ชื่อกรรมการท่านนี้ได้ทำการเลือกคณะอนุกรรมการไปแล้ว (เลือกได้ตำแหน่งละ 1 ชุดเท่านั้น)');
         return;
       }
+    } else {
+      const member = committeeMembers.find((m) => m.id === Number(selectedMemberId));
+      if (!member) {
+        setErrorMessage('ข้อมูลกรรมการไม่ถูกต้อง');
+        return;
+      }
+      const alreadyTaken = submissions.some((s) => s.memberId === member.id);
+      if (alreadyTaken) {
+        setErrorMessage('ตำแหน่งนี้ได้ทำการเลือกคณะอนุกรรมการไปแล้ว (สามารถเลือกได้เพียงตำแหน่งละ 1 ชุดเท่านั้น)');
+        return;
+      }
+    }
+
+    const subCommittee = subCommittees.find((c) => c.id === selectedSubCommitteeId);
+    if (!subCommittee) {
+      setErrorMessage('ข้อมูลคณะอนุกรรมการไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
+      return;
+    }
+
+    const currentCount = submissions.filter((s) => s.subCommitteeId === subCommittee.id).length;
+    if (currentCount >= subCommittee.targetCapacity) {
+      setErrorMessage(
+        `คณะอนุกรรมการชุดที่ ${subCommittee.number} (${subCommittee.title}) ครบตามจำนวนโควต้าแล้ว (${subCommittee.targetCapacity} ท่าน) กรุณาเลือกคณะอนุกรรมการชุดอื่น`
+      );
+      setSelectedSubCommitteeId(null);
+      return;
+    }
+
+    // All validation passed -> Open confirmation dialog
+    setIsConfirmDialogOpen(true);
+  };
+
+  // User confirms submission inside dialog
+  const handleConfirmSubmit = async () => {
+    if (!selectedSubCommitteeId) return;
+
+    let memberIdToSubmit: number;
+    let memberRoleToSubmit: string;
+
+    if (selectedMemberId === 'other') {
       const currentMax = submissions.reduce((max, s) => Math.max(max, s.memberId), 20);
       memberIdToSubmit = currentMax + 1;
       memberRoleToSubmit = customRole.trim();
@@ -101,12 +162,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
       const member = committeeMembers.find((m) => m.id === Number(selectedMemberId));
       if (!member) {
         setErrorMessage('ข้อมูลกรรมการไม่ถูกต้อง');
-        return;
-      }
-      // Check if already selected (ตัดสิทธิ์เลือกซ้ำ ให้เลือกได้ตำแหน่งละ 1 ชุด)
-      const alreadyTaken = submissions.some((s) => s.memberId === member.id);
-      if (alreadyTaken) {
-        setErrorMessage('ตำแหน่งนี้ได้ทำการเลือกคณะอนุกรรมการไปแล้ว (สามารถเลือกได้เพียงตำแหน่งละ 1 ชุดเท่านั้น)');
+        setIsConfirmDialogOpen(false);
         return;
       }
       memberIdToSubmit = member.id;
@@ -116,16 +172,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
     const subCommittee = subCommittees.find((c) => c.id === selectedSubCommitteeId);
     if (!subCommittee) {
       setErrorMessage('ข้อมูลคณะอนุกรรมการไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง');
-      return;
-    }
-
-    // Check if sub-committee has reached quota
-    const currentCount = submissions.filter((s) => s.subCommitteeId === subCommittee.id).length;
-    if (currentCount >= subCommittee.targetCapacity) {
-      setErrorMessage(
-        `คณะอนุกรรมการชุดที่ ${subCommittee.number} (${subCommittee.title}) ครบตามจำนวนโควต้าแล้ว (${subCommittee.targetCapacity} ท่าน) กรุณาเลือกคณะอนุกรรมการชุดอื่น`
-      );
-      setSelectedSubCommitteeId(null);
+      setIsConfirmDialogOpen(false);
       return;
     }
 
@@ -138,10 +185,11 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
     });
 
     if (success) {
+      setIsConfirmDialogOpen(false);
       setSuccessMessage(
         `บันทึกข้อมูลสำเร็จ: ท่านได้เลือก "${subCommittee.badgeLabel}" เรียบร้อยแล้ว`
       );
-      // Reset form so the selected position is cleanly removed from available choices
+      // Reset form fields
       setSelectedMemberId('');
       setMemberName('');
       setCustomRole('');
@@ -151,6 +199,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
         setSuccessMessage(null);
       }, 6000);
     } else {
+      setIsConfirmDialogOpen(false);
       setErrorMessage('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
     }
   };
@@ -165,7 +214,7 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
         </h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-5 sm:p-7 space-y-6">
+      <form onSubmit={handleInitiateSubmit} className="p-5 sm:p-7 space-y-6">
         {/* Step 1: Member Identification */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-150">
@@ -405,6 +454,104 @@ export const SurveyForm: React.FC<SurveyFormProps> = ({
           </button>
         </div>
       </form>
+
+      {/* Confirmation Dialog Popup (Dialog04 style with expanded dimensions and responsive mobile layout) */}
+      {isConfirmDialogOpen && selectedSubCommittee && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => !isSubmitting && setIsConfirmDialogOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-2xl p-5 sm:p-8 max-w-lg sm:max-w-xl w-full max-h-[92vh] overflow-y-auto relative flex flex-col items-center text-center animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+          >
+            {/* Close Button X with generous touch target */}
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => setIsConfirmDialogOpen(false)}
+              className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="ปิด"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Centered Green Check Icon in Circle */}
+            <div className="flex justify-center mb-3.5">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 shadow-2xs">
+                <Check className="h-7 w-7 text-green-600 stroke-[2.5]" />
+              </div>
+            </div>
+
+            {/* Dialog Header / Title */}
+            <h3 className="text-lg sm:text-xl font-bold text-slate-900 leading-snug">
+              ยืนยันการเลือกคณะอนุกรรมการ
+            </h3>
+
+            {/* Dialog Question & Prominently Highlighted Committee Title */}
+            <div className="mt-2.5 w-full text-xs sm:text-sm text-slate-600 leading-relaxed text-center">
+              <span>ท่านยืนยันที่จะเลือกคณะอนุกรรมการ</span>
+              <div className="mt-2.5 p-3.5 sm:p-4 rounded-xl bg-emerald-50/80 border border-emerald-200/80 text-slate-900 text-left sm:text-center shadow-2xs">
+                <div className="flex items-center sm:justify-center gap-1.5 mb-1">
+                  <span
+                    className={`inline-block px-2.5 py-0.5 rounded text-xs font-bold ${selectedSubCommittee.accentColor.badgeBg} ${selectedSubCommittee.accentColor.badgeText}`}
+                  >
+                    ชุดที่ {selectedSubCommittee.number}
+                  </span>
+                </div>
+                <p className="font-bold text-slate-900 text-sm sm:text-base leading-snug break-words">
+                  {selectedSubCommittee.title}
+                </p>
+              </div>
+              <p className="mt-2 font-semibold text-slate-700 text-xs sm:text-sm">
+                หรือไม่?
+              </p>
+            </div>
+
+            {/* Member Details Preview Card */}
+            <div className="mt-4 w-full p-3.5 sm:p-4 rounded-xl bg-slate-50 border border-slate-200/90 text-left text-xs sm:text-sm space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-start gap-1 sm:gap-2.5 pb-2 border-b border-slate-200/70 text-left">
+                <span className="text-slate-500 font-medium shrink-0 text-left">ชื่อ-นามสกุล กรรมการ:</span>
+                <span className="font-bold text-slate-900 break-words text-left">{memberName.trim()}</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-start gap-1 sm:gap-2.5 text-left">
+                <span className="text-slate-500 font-medium shrink-0 text-left">ตำแหน่งกรรมการตามคำสั่ง:</span>
+                <span className="font-semibold text-slate-800 break-words text-left">{pendingMemberRole}</span>
+              </div>
+            </div>
+
+            {/* Dialog Footer with 'ยืนยัน' and 'ไม่ยืนยัน' buttons */}
+            <div className="flex w-full flex-col sm:flex-row gap-2.5 sm:gap-3.5 mt-6">
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleConfirmSubmit}
+                className="w-full sm:w-1/2 py-3 px-5 rounded-xl bg-slate-900 hover:bg-black active:scale-[0.98] text-white font-bold text-sm sm:text-base transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>กำลังบันทึก...</span>
+                  </>
+                ) : (
+                  <span>ยืนยัน</span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => setIsConfirmDialogOpen(false)}
+                className="w-full sm:w-1/2 py-3 px-5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 active:bg-slate-200 text-slate-700 font-semibold text-sm sm:text-base transition-all cursor-pointer text-center"
+              >
+                ไม่ยืนยัน
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
